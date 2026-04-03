@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🖥️ Mission Control Terminal</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+            background: #0a0e14;
+            font-family: 'Inter', sans-serif;
+        }
+        .terminal-grid {
+            display: grid;
+            grid-template-rows: 48px 1fr;
+            height: 100vh;
+            gap: 0;
+        }
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            grid-template-rows: 1fr 1fr;
+            gap: 1px;
+            background: #1e2a3a;
+            overflow: hidden;
+        }
+        .panel {
+            background: #111820;
+            overflow: hidden;
+            position: relative;
+        }
+        .panel-header {
+            background: #0d1117;
+            border-bottom: 1px solid #1e2a3a;
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #6e7681;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .panel-content {
+            padding: 10px;
+            height: calc(100% - 33px);
+            overflow-y: auto;
+        }
+        .ticker {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            line-height: 1.7;
+        }
+        .ticker-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(30, 42, 58, 0.4);
+        }
+        .ticker-row:last-child { border-bottom: none; }
+        .price { font-weight: 600; }
+        .change-up { color: #3fb950; }
+        .change-down { color: #f85149; }
+        .hf-badge {
+            padding: 3px 10px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .hf-safe { background: rgba(63, 185, 80, 0.15); color: #3fb950; border: 1px solid rgba(63, 185, 80, 0.3); }
+        .hf-warning { background: rgba(210, 153, 34, 0.15); color: #d29922; border: 1px solid rgba(210, 153, 34, 0.3); }
+        .hf-danger { background: rgba(248, 81, 73, 0.15); color: #f85149; border: 1px solid rgba(248, 81, 73, 0.3); }
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+        .pulse { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .flint-box {
+            background: rgba(88, 166, 255, 0.08);
+            border: 1px solid rgba(88, 166, 255, 0.2);
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 8px;
+        }
+        .risk-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 14, 20, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.3s;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0e14; }
+        ::-webkit-scrollbar-thumb { background: #1e2a3a; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #2d3a4a; }
+    </style>
+</head>
+<body>
+    <!--  Overlay -->
+    <div id="Overlay" class="-overlay">
+        <div class="text-center">
+            <div class="text-terminal-accent font-mono text-sm mb-2"> Mission Control...</div>
+            <div class="text-terminal-muted text-xs"> real-time data feeds</div>
+        </div>
+    </div>
+
+    <div class="terminal-grid">
+        <!-- Header Bar -->
+        <header style="background: #0d1117; border-bottom: 1px solid #1e2a3a; display: flex; align-items: center; justify-content: space-between; padding: 0 16px;">
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <div style="font-weight: 700; font-size: 14px; color: #e6edf3;">🖥️ MISSION CONTROL</div>
+                <div style="display: flex; align-items: center; gap: 12px; font-size: 11px; color: #6e7681;">
+                    <span><span class="status-dot pulse" style="background: #3fb950;"></span>VPN</span>
+                    <span><span class="status-dot pulse" style="background: #3fb950;"></span>GW</span>
+                    <span><span class="status-dot pulse" style="background: #3fb950;"></span>DB</span>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 16px; font-size: 11px;">
+                <div style="color: #6e7681;">Last update: <span id="lastUpdate" style="color: #e6edf3; font-family: 'JetBrains Mono', monospace;">--:--:--</span></div>
+                <div id="updateIndicator" style="display: none; color: #3fb950;">● LIVE</div>
+            </div>
+        </header>
+
+        <!-- Main Grid -->
+        <div class="main-content">
+            <!-- Panel 1: Crypto Markets (Top Left) -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span>💰 Crypto Markets</span>
+                    <span style="font-size: 10px; color: #3fb950;">● REAL-TIME</span>
+                </div>
+                <div class="panel-content">
+                    <div class="ticker" id="cryptoTicker">
+                        <div class="ticker-row">
+                            <span style="color: #6e7681;">...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel 2: DeFi Positions (Top Right - in right column) -->
+            <div class="panel" style="grid-column: 2; grid-row: 1;">
+                <div class="panel-header">
+                    <span>🏦 DeFi Positions</span>
+                    <span style="font-size: 10px;">HF Monitor</span>
+                </div>
+                <div class="panel-content">
+                    <div id="defiPanel">
+                        <div style="color: #6e7681; font-size: 12px; text-align: center; padding: 20px;">...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel 3: Geopolitics & Macro (Bottom Left) -->
+            <div class="panel" style="grid-row: 2;">
+                <div class="panel-header">
+                    <span>🌍 Geopolitics & Macro</span>
+                    <span style="font-size: 10px;">Global Markets</span>
+                </div>
+                <div class="panel-content">
+                    <div class="ticker" id="geoTicker">
+                        <div class="ticker-row">
+                            <span style="color: #6e7681;">...</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #1e2a3a;">
+                        <div style="font-size: 11px; color: #6e7681; margin-bottom: 6px;">FOMC Countdown</div>
+                        <div id="fomcCountdown" style="font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; color: #58a6ff;">--d --:--:--</div>
+                        <div id="fomcDate" style="font-size: 10px; color: #6e7681; margin-top: 2px;">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel 4: Flint Insights (Bottom Right) -->
+            <div class="panel" style="grid-column: 2; grid-row: 2;">
+                <div class="panel-header">
+                    <span>🧠 Flint Insights</span>
+                    <span style="font-size: 10px;">AI Research</span>
+                </div>
+                <div class="panel-content" id="flintPanel">
+                    <div style="color: #6e7681; font-size: 12px; text-align: center; padding: 20px;">Waiting for Flint agent...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+</body>
+</html>
